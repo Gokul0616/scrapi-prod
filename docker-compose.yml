@@ -1,0 +1,46 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: scrapi
+      POSTGRES_USER: scrapi
+      POSTGRES_PASSWORD: scrapi
+    ports:
+      - "5432:5432"
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg2://scrapi:scrapi@db:5432/scrapi
+      REDIS_URL: redis://redis:6379/0
+      API_KEY: dev-secret-key
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+  worker:
+    build: ./backend
+    command: celery -A app.workers.celery_app.celery worker --loglevel=info -Q celery
+    environment:
+      DATABASE_URL: postgresql+psycopg2://scrapi:scrapi@db:5432/scrapi
+      REDIS_URL: redis://redis:6379/0
+      API_KEY: dev-secret-key
+      PYTHONPATH: /app
+    depends_on:
+      - db
+      - redis
+  beat:
+    build: ./backend
+    command: celery -A app.workers.celery_app.celery beat --loglevel=info
+    environment:
+      DATABASE_URL: postgresql+psycopg2://scrapi:scrapi@db:5432/scrapi
+      REDIS_URL: redis://redis:6379/0
+      API_KEY: dev-secret-key
+      PYTHONPATH: /app
+    depends_on:
+      - db
+      - redis
